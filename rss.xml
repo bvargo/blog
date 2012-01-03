@@ -1,0 +1,27 @@
+---
+layout: nil
+---
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+   <channel>
+      <title>Vargoville</title>
+      <link>https://bvargo.com/blog/</link>
+      <description>Vargoville posts feed.</description>
+      <atom:link href="http://bvargo.com/blog/rss.xml" rel="self"></atom:link>
+      <language>en-us</language>
+      <lastBuildDate>{{ site.time | date: "%a, %d %b %Y %H:%M:%S %Z" }}</lastBuildDate>
+
+      {% for post in site.posts %}
+      <item>
+         <title>{{ post.title }}</title>
+         <link>http://bvargo.com{{ post.url }}</link>
+         <pubDate>{{ post.date | date: "%a, %d %b %Y 00:00:00 GMT" }}></pubDate>
+         <guid>http://bvargo.com{{ post.url }}</guid>
+         <description>
+            {{ post.content | xml_escape}}
+         </description>
+      </item>
+      {% endfor %}
+
+   </channel>
+</rss>

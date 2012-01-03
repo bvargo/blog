@@ -1,0 +1,149 @@
+---
+layout: post
+title: "The Bluetooth Blues: Getting a Linux PC to use a GPS on an Android Device"
+tags:
+   - gentoo
+   - tech
+---
+
+Bluetooth is one of the modern wonders of modern wireless technology. Whether you want to talk on the phone through your car or play a game on your Wii with a wiimote, you're using bluetooth. It is wonderful, when it works. When it doesn't, however, then it can be a royal pain.
+
+I set out with a simple goal: let me laptop use my phone's GPS. Easy, right? Well, not exactly.
+
+Bluetooth on Linux has never been easy to work with, or at least I have not found the right tools to make it easy. Verion 4 of BlueZ, the Linux bluetooth stack, did not help matters much either. With version 4, all of the configuration files changed. All of the command-line tools changed. BlueZ shifted to becoming a D-Bus-centric service. That may be great for people who run KDE or Gnome and have a little panel applet to handle everything, but for me, the command-line user, all of my tools were taken away. For a long time, there simply were no command-line tools of the same quality as the old version 3 commands. You had to use D-Bus. I stayed at version 3 for a long time after it stagnated. It worked.
+
+Fast forward a year of so. Gentoo added two use-flags for version 4 of BlueZ: test-programs and old-daemons. All of my old CLI tools are back in service. The new test programs also make several things much nicer.
+
+Enough introduction. How do I get my Android phone's GPS available to my computer? To do this, there are a couple different pieces of software that I used. BlueZ, obviously, for the bluetooth stack on the computer. (BlueZ is also used in Android, but you do not really see it, since there is a nice UI.) "GPSd":http://gpsd.berlios.de/, the GPS service daemon, which is the de facto GPS API on Linux. On the phone, I use a tool called "GPS 2 BT":http://android.cajax.net/en/gps2bt, which is available in the Market for free and outputs data in the NMEA format over bluetooth.
+
+For the rest of this guide, I will assume that you have everything above installed. I will also assume that you are the root user when root permissions are needed. I will also assume that if you are not on Gentoo you can adapt the file paths / commands as needed.
+
+h1. Step 0: Figure out the MAC address of the bluetooth interface on your computer and phone
+
+On the computer:
+
+{% highlight text %}
+hcitool scan
+{% endhighlight %}
+
+Which will output something like this:
+
+{% highlight text %}
+Devices:
+   hci0     00:00:00:00:00:00
+{% endhighlight %}
+
+00:00:00:00:00:00 is the MAC address of your computer. Now for the phone. Turn on bluetooth in the settings menu (settings -> wireless & networks -> check bluetooth) and then enter the bluetooth settings menu. In the bluetooth settings menu, note the name of the device and then check discoverable, which will make your phone visible to other devices for two minutes. Back on the computer:
+
+{% highlight text %}
+hcitool scan
+{% endhighlight %}
+
+Which will output something similar to the following:
+
+{% highlight text %}
+Scanning ...
+   11:11:11:11:11:11    phone_name_here
+{% endhighlight %}
+
+h1. Step 1: Pairing the devices
+
+Do not leave the settings menu yet. It turns out that it is easier to pair the devices by initiating the connection from the phone, rather than the computer. Back on the computer, make the computer discoverable by using the bluez-test-adapter script. Second, start a pin program that will prompt for a pin when ready to pair:
+
+{% highlight text %}
+bluez-test-adapter discoverable on
+simple-agent
+{% endhighlight %}
+
+Back in the bluetooth menu on the phone, click scan for devices and look for your computer in the list of devices. Click on the device and enter a pin, such as a four digit number. Back on the computer you should see a prompt in the window running simple-agent asking for the pin. Enter the same number and press enter. The pairing should be successful; the phone should list the computer with "paired but not connected" listed below the name of the computer. If this is the case, hit ctrl-c on the computer to close simple-agent, as we don't need it anymore. Also, make the computer hidden again:
+
+{% highlight text %}
+bluez-test-adapter discoverable off
+{% endhighlight %}
+
+h1. Step 2: Setting up the GPS
+
+Back on the home screen of the phone, tap the GPS 2 BT widget so that the slider on the right is up and the bar is green. This means that the phone is ready to accept GPS connections. Back on the computer, we are going to run a service discovery command to see that the GPS is indeed visible.
+
+{% highlight text %}
+sdptool browse 11:11:11:11:11:11
+{% endhighlight %}
+
+Remember, 11:11:11:11:11:11 is the MAC address of the phone. Change accordingly for your phone. You should get back a bunch of different services, among which should be something similar to the following:
+
+{% highlight text %}
+Service Name: Bluetooth GPS
+Service RecHandle: 0x10003
+Service Class ID List:
+UUID 128: 00001101-0000-1000-8000-00805f9b34fb
+Protocol Descriptor List:
+"L2CAP" (0x0100)
+"RFCOMM" (0x0003)
+   Channel: 29
+{% endhighlight %}
+
+
+h1. Step 3: Setting up RFCOMM
+
+RFCOMM, which stands for radio frequency communication, is a protocol that emulates serial ports over Bluetooth. It can emulate multiple connections at once, so each connection is given a channel number. As an analogy, consider an IP and port in typical TCP/IP. The IP is sort of like the MAC in this case, and the channel is sort of like the port that the client connects to. This isn't actually how it works, but it may be helpful to think about it in this way.
+
+In the example above, the GPS is on channel 29 (last line of the output). Configure the RFCOMM connection, using that channel, by editing /etc/bluetooth/rfcomm.conf:
+
+{% highlight text %}
+rfcomm0 {
+   # Automatically bind the device at startup
+   bind yes;
+
+   # Bluetooth address of the device
+   device 11:11:11:11:11:11;
+
+   # RFCOMM channel for the connection
+   channel 29;
+
+   # Description of the connection
+   comment "Android GPS";
+}
+{% endhighlight %}
+
+h1. Step 4: Configuring GPSd
+
+Edit /etc/conf.d/gpsd, or the GPSd configuration file for other systems, to change the GPS device. Above, we named the RFCOMM connection rfcomm0. This will show up as /dev/rfcomm0. Use that device for GPSd.
+
+{% highlight sh %}
+GPS_DEV="/dev/rfcomm0"
+{% endhighlight %}
+
+h1. Step 5: Test it out.
+
+Make sure the GPS icon on the phone is green, bluetooth is enabled on the phone and the computer, and the configured RFCOMM channel matches the actual channel on the device. Start up gpsd (/etc/init.d/gpsd start). The daemon should be running now. Launch xgps, a test program included with GPSd, and see if it shows you your location. Try out other applications that use GPSd to get the location, such as kismet or gpsdrive. A list of many applications can be found at the GPSd "homepage":http://gpsd.berlios.de/.
+
+h1. Troubleshooting
+A few useful tools for debugging:
+
+{% highlight text %}
+rfcomm unbind rfcomm0
+{% endhighlight %}
+
+and
+
+{% highlight text %}
+rfcomm bind rfcomm0
+{% endhighlight %}
+
+This destroys and creates the /dev/rfcomm0 device. This is needed whenever you reconfigure the RFCOMM settings. Restarting the bluetooth service should work too, but the commands above ensure the job gets done.
+
+You can manually connect with:
+
+{% highlight text %}
+rfcomm connect rfcomm0
+{% endhighlight %}
+
+However, the bluetooth connection should be started when GPSd is started, as GPSd tries to read from the file, so this should be unecessary.
+
+If you have the Android development tools installed, you can run the following to print the Android log:
+
+{% highlight text %}
+adb logcat
+{% endhighlight %}
+
+Finally, if you keep getting errors, *check your RFCOMM channel*. For some reason, whenever I disconnect from the GPS or restart the Android widget, the RFCOMM channel changes. I have yet to find a better way to discover the correct channel each time.

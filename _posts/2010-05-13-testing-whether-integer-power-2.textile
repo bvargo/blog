@@ -1,0 +1,46 @@
+---
+layout: post
+title: "Testing Whether an Integer is a Power of 2"
+tags:
+   - cs
+   - code
+---
+
+By using the & (logical and) operator, we can easily (and quickly!) test whether an integer is a power of 2.
+
+In C:
+
+{% highlight c %}
+int isPowerOfTwo(unsigned int x)
+{
+   return (x != 0) && !(x & (x - 1));
+}
+{% endhighlight %}
+
+This works because an integer that is a power of two, x, is represented by a single 1 bit, with the other bits being 0. The same bit in x-1 will always be 0 because of the subtraction. Thus, when the two are anded together, the result will always be 0.
+
+For example:
+
+* x = 1: x = 0001, x-1 = 0000, x & x-1 = 0001 & 0000 = 0000
+* x = 2: x = 0010, x-1 = 0001, x & x-1 = 0010 & 0001 = 0000
+* x = 4: x = 0100, x-1 = 0011, x & x-1 = 0100 & 0011 = 0000
+* x = 8: x = 1000, x-1 = 0111, x & x-1 = 1000 & 0111 = 0000
+
+But if x is not a power of two, the result is not 0:
+
+* y = 3: y = 0011, y-1 = 0010, y & y-1 = 0011 & 0010 = 0010
+* y = 5: y = 0101, y-1 = 0100, y & y-1 = 0101 & 0100 = 0100
+
+<strong>Update:</strong>
+I have come across another way to quickly test if an integer is a power of two.
+
+In C:
+
+{% highlight c %}
+int isPowerOfTwo(unsigned int x)
+{
+return ((x != 0) && ((x & (~x + 1)) == x));
+}
+{% endhighlight %}
+
+See if you can figure this one out for yourself.

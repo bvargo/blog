@@ -1,0 +1,19 @@
+---
+layout: default
+title: Tags
+subtitle: Vargoville
+---
+{% if page.related %}
+   <p id="related">
+      Related tags:
+      {% for tag in page.related %}
+         <a href="/blog/tag/{{ tag }}">{{ tag }}</a>
+      {% endfor %}
+   </p>
+{% endif %}
+
+{% for post in site.tags[page.tag] %}
+   <div class="post">
+      {% include post_summary.html %}
+   </div>
+{% endfor %}

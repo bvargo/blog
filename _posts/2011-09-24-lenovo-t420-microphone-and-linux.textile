@@ -1,0 +1,15 @@
+---
+layout: post
+title: "Lenovo T420 Internal Microphone and Linux"
+tags:
+   - tech
+   - gentoo
+---
+
+I recently -- by which I mean probably 6 months ago -- bought a Lenovo T420. The machine is amazing, except on one point: the microphone and headphone jacks are combined. For work, I need to be able to use Skype; it's not my favorite program in the world, but hey, it sort of works when the weather is right and the stars are aligned. However, with the integrated microphone/headphone port, I had a problem: I could not connect a microphone while still using my laptop's speakers. The T420 also includes a built-in stereo microphone, but this did not work correctly under Linux. I needed to make the internal microphone work.
+
+It turns out that I had too many audio drivers installed, since I had started with a liberal, non-tuned kernel configuration. Device Drivers -> Sound -> ALSA -> PCI sound devices -> Intel HD audio -> Conexand HD-audio codec support is the only required option. I also enabled reconfiguration support, jack plugging notification, and the HDMI drivers, as well as power saving. Now the internal microphone shows up as Capture in alsamixer. To enable capture, press spacebar in alsamixer so that the L and R indicators come up along with "CAPTURE".
+
+Now both the microphone and video camera work. (To get the video camera working, enable Device Drivers -> Multimedia support -> Video capture adapters -> V4L USB devices -> UVC.)
+
+Happy Skyping.

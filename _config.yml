@@ -1,0 +1,4 @@
+pygments: true
+baseurl: /blog
+# enable related tags
+related_tags: true

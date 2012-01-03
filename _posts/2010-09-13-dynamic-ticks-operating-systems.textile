@@ -1,0 +1,36 @@
+---
+layout: post
+title: "Dynamic Ticks for Operating Systems"
+tags:
+   - cs
+---
+
+Last week, I asked in my OS class how tickless operating systems use interrupts or other mechanisms to achieve lower power usage. I did not get my question answered, and have since read into the topic some more. Here is what I found.
+
+*Warning: I am not a kernel developer. I am a student. Some of this information may be outdated or outright wrong.*
+
+Background:
+
+"Normal" operating systems use system timer interrupt (a periodic timer "tick") that fires on a periodic interval. This allows the kernel of the OS to update internal counters, perform any accounting, and switch processes (perform a context switch) if the current process' time slice is done. This method has two primary downfalls: kernel timer resolution is limited to the tick rate, and an idle system uses unnecessary power by waking up from a sleeping state, checking to see if anything needs to be done, and then going back to sleep. These two functions are linked together. Suppose I am creating a real-time OS that has hard latency requirements, and I want to ensure the system is always responsive. Further suppose that I want this real-time OS to run on an embedded platform with low power requirements. To achieve more accurate timers, and then lower latencies, I can increase the rate of the timer interrupt. However, this also uses more power, as the system uses the CPU and other hardware devices that may otherwise be idle to check if anything needs to be done.
+
+In Linux, the duration of a single tick of the system timer is called a jiffy. The actual duration of a jiffy in seconds is platform-dependent. On my box, by default, the timer frequency is set for 300Hz, so the timer fires every 1/300 of a second, which is just over 3ms.
+
+Now imagine that, even if your system is idle, it wakes up 300 times a second to see if it needs to do anything. However, at the same time, any system timers cannot be more accurate than 3ms, unless the rate is changed. This uses a lot of power if the system could otherwise be in a lower power state. As an analogy, consider setting your alarm clock so that you stop whatever you are doing every 4.8 minutes, even in the middle of the night, to see if it is time to go to class. You wouldn't be able to get any sleep, and you would not be able to focus on what you are doing for more than 4.8 minutes. Furthermore, if you check if it is time to go to class 5.3 minutes before class, you would have to wait another 4.8 minutes before you check again and realize that you have to go to class. This could leave you running for class if it turns out you only have 30 seconds left before class starts. Wouldn't it be nice if you could set the alarm clock so that it left you just enough time to get to class, and you wouldn't have to check every 4.8 minutes to see if it was time to go? In other words, wouldn't it be nice if we could set an accurate timer so that it would go off exactly when we needed it to?
+
+In this analogy, the course of the day is a second for your computer, and checking if it is time to go to class is equivalent to updating the computer's internal counters and checking for timer events. Hardware devices generate interrupts when they have something to say; wouldn't it be nice if we could do the same for internal software events too? Clearly the case of checking the clock every 4.8 minutes to see if it is time to go to class is not optimal. If you really want to extend the analogy, consider the context switch to be the 30 seconds it takes you to roll out of bed and wake up. Having an alarm clock go off exactly when it needs to is the equivalent of a controllable timer interrupt; the timing is far more precise compared to checking the clock every so often, and you get some sleep at night.
+
+Enter tickless operating systems.
+
+Tickless operating systems abolish the periodic tick, either when idle or completely, and use specific hardware to only wake up when necessary. This saves power when idle, and gives more processing time to the user when not idle. It also allows the accuracy of internal timers to be as accurate as the hardware allows, as there is no power/accuracy tradeoff. For example, if the OS knows that it does not need to wake for another 1.5 seconds, for example when the system is idle, then it can put the processor in a low power state for the entire 1.5 seconds. Hardware interrupts can still wake the system, so this is transparent to the user if implemented correctly. These little power savings add up.
+
+There is still a timer interrupt that is fired when requested, but the difference is that the OS is specifically requesting the timer to fire at a certain time and only when needed.
+
+More information:
+
+I mainly referenced Linux while looking for the answer to my question, as that is what I use, and the sources and developer messages are available for browsing. Of course some of this is probably oversimplified. For more information for Linux, which will also turn up general information, look for NO_HZ, dyntick, clockevents, or high resolution timers. NO_HZ is the kernel option that makes the OS tickless. dyntick and clockevents are part of the kernel. High resolution timers are more general. Linux has had a number of architecture-specific implementations of dynamic ticks since it was implemented for the s390 architecture in 2.6.6 in 2004. clockevents and dyntick, which provide a general API for timing events, were merged into the mainline kernel for 2.6.19 in early 2007.
+
+Interesting links:
+
+* "Clickevents and dyntick":http://lwn.net/Articles/223185/
+* "High-Res Timers and Tickless Kernel":http://kerneltrap.org/node/6750
+* Lots of messages on the LKML.

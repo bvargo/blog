@@ -1,0 +1,32 @@
+---
+layout: post
+title: "Arduino Installation Notes"
+tags:
+   - gentoo
+   - tech
+---
+
+I recently bought an Arduino Uno (thanks in part to SparkFun's free day, thanks SparkFun!), and I have finally gotten around to hooking it up to my main Linux box, which runs Gentoo. Some notes on problems I encountered getting everything working:
+
+1) The dev-embedded/arduino package in Porgage is extremely old. Use the overlay at git://gitorious.org/gentoo-arduino/arduino.git, or compile directly from the Arduino source.
+
+2) Despite what online documentation may say, the Uno does not use a FTDI chip for serial communication, unlike the previous Arduinos. Instead, the ATmega328 firmware image takes care of the USB<-->serial communication. As such, a different driver is required. When configuring a kernel, enable CONFIG_USB_ACM (Device Drivers -> USB Support -> USB Modem (CDC ACM) support) for support. The Arduino will most likely show up as /dev/ttyACM0, assuming no other ACM devices are connected.
+
+3) The Uno firmware may have a bug in it that causes issues under Linux, depending on the version loaded. To update the firmware, follow the instructions "here": http://arduino.cc/en/Hacking/DFUProgramming8U2.
+
+4) In Gentoo, there is a bug where the crossdev version of ld will not find the file avr5.x. For more information, see "Bug 147155":http://bugs.gentoo.org/show_bug.cgi?id=147155 in the Gentoo Bugzilla. For a quick fix, the following works, thanks to comment 61 on that bug, assuming an amd64 host:
+
+{% highlight bash %}
+cd /usr/x86_64-pc-linux-gnu/avr/binutils-bin/2.20.1
+ln -sf /usr/lib/binutils/avr/2.20.1/ldscripts ldscripts
+{% endhighlight %}
+
+5) The Arduino version of avrdude is different than the stock version. The modified version of avrdude can be found in the Arduino github repository (git://github.com/arduino/Arduino.git). If you try to use the stock version, you will probably get an error that looks something like this:
+
+{% highlight text %}
+avrdude: Yikes!  Invalid device signature.
+         Double check connections and try again, or use -F to override
+         this check.
+{% endhighlight %}
+
+Now everything works, and I've finally started a few new projects that had gotten pushed to the side for the past two years.

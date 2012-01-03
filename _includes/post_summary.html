@@ -1,0 +1,10 @@
+<div class="date">{{ post.date | date: "%A, %d %B %Y" }}</div>
+<div class="post_title"><a href="/blog{{ post.url }}">{{ post.title }}</a></div>
+
+<div class="post_text">
+   {{ post.preview }}
+</div>
+
+<a href="/blog{{ post.url }}">Continue reading "{{ post.title }}"</a>
+
+{% include post_footer.html %}

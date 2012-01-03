@@ -1,0 +1,65 @@
+---
+layout: post
+title: "Copying Chromium/Google Chrome Search Engines"
+tags:
+   - tech
+---
+
+Chromium (the open source version of Google Chrome) has a great search engine feature that allows the user to search different websites directly from the omnibox (the address bar). I use this feature heavily; for example, "wp Linux" means search Wikipedia for the Linux article for my browser, "bgo chromium" means search bugs.gentoo.org for all bugs containing the term chromium, etc. All of these search engine features are configured from the "Manage Search Engines" screen under Preferences. Chromium will even add search engines as it finds them, through metadata embedded in some pages. For example, Amazon has this feature embedded in its page, so searching "amazon.com Arduino" will search for the Arduino on Amazon.
+
+But there's a problem, aside from some people not like search engines being added automatically. While Chromium seems to sync almost everything between multiple computers, search engines are not synced. Read on for how the search engines can be transferred from one machine to another without having to enter them all by hand.
+
+*Update*: Chromium now support search engine synchronization. See "Issue 15548":http://code.google.com/p/chromium/issues/detail?id=15548 for more information.
+
+h1. Backround
+
+Chromium stores most settings in a set of SQLite databases. I will not detail SQLite, since the project has excellent documentation on the "SQLite website":http://sqlite.org/, it will suffice to say that SQLite is an embedded, relational database. In particular, Chromium stores the search engines in a table called keywords in the "Web Data" database. These keywords can be exported and re-imported into another Chromium browser profile.
+
+h1. Getting Started
+
+First, when doing any work with the SQLite database, ensure Chromium is not running. SQLite supports the locking of the database nicely, so you do not have to worry about corrupt data, but Chromium likes to keep the database locked more often than not.
+
+Second, find the profile directory in which Chromium keeps its data. On Linux, this is ~/.config/chromium/Default/, for the default profile. On Windows, if you are running Chrome, the profile should be somewhere such as C:\\Users\\username\\Application Data\\Google\\Chrome\\Default, for Windows Vista or Windows 7. Please substitute this path where I write ~/.config/chromium/Default/ later.
+
+Third, you will need the sqlite3 command-line interface for this tutorial, available from the "SQLite website":http://sqlite.org/. This should already be present on most Linux machines and Macs. For Windows, choose the download page, and then look under "Precompiled Binaries for Windows," particularly at the zip file with the shell.
+
+Finally, please note that this will NOT synchronize the search engines. This is a one-way process, as written, though you could expand it to export from both computers, combine the results, and then use the new set of search engines on many computers.
+
+h1. Exporting the Data
+
+Exporting the search engines is as easy as exporting the keywords table from SQLite. On the machine that you wish to export the search engines from:
+
+{% highlight bash %}
+sqlite3 ~/.config/chromium/Default/Web\ Data
+{% endhighlight %}
+
+This will start the sqlite3 command-line interface. Then, to export the data from the keywords table:
+
+{% highlight text %}
+.output keywords_export.sql
+.dump keywords
+.quit
+{% endhighlight %}
+
+Now you have a file called keywords_export.sql in the directory from which you ran the sqlite3 command. Copy this to the machine on which you wish to import the search engines.
+
+h1. Importing the Data
+
+Importing the data is even easier. Assuming that the export done in the previous step is called keywords_export.sql is in the working directory, the following will delete the old search engines and import the new search engines:
+
+{% highlight bash %}
+sqlite3 ~/.config/chromium/Default/Web\ Data "DROP TABLE keywords"
+sqlite3 ~/.config/chromium/Default/Web\ Data < keywords_export.sql
+{% endhighlight %}
+
+The last command will not work in a normal Windows shell, which does not support file redirection nicely. Instead, use the following in place of the last command, remembering to substitute for the location of the Web Data database:
+
+{% highlight bash %}
+sqlite3 -init keywords_export.sql ~/.config/chromium/Default/Web\ Data .quit
+{% endhighlight %}
+
+Start up Chromium and see your search engines restored.
+
+h1. Conclusion
+
+You should see your search engines copied from one machine to another. If you wish to see syncing of search engines in chromium or Google Chrome, please star "Issue 15548":http://code.google.com/p/chromium/issues/detail?id=15548 on the chromium project's issue tracker. Not only are you letting the developers know you wish to see this feature, but you are notified of all future updates regarding the feature request.

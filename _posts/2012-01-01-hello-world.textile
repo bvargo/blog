@@ -1,0 +1,10 @@
+---
+layout: post
+title: "Hello World"
+tags:
+   - site
+---
+
+Hello world! Again. Keeping with the tradition of writing more blog engines than blog posts, I now have _two_ new blog engines. I began writing a static blog site generated from source markup using shell scripts, but then I discovered "jekyl":http://jekyllrb.com/ and "hyde":https://github.com/hyde/hyde. I decided to go with jekyll. All of my old blog links should still work, but now it is easier for me to write new blog posts (go vim!).
+
+My New Year's resolution is to publish more of my projects (code or otherwise), so hopefully I will get around to posting about interesting things here. To start with, check out the two plugins I wrote for this blog "on github":http://github.com/bvargo. The plugins create the tag pages and post summaries.

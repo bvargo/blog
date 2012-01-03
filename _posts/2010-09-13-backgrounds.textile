@@ -1,0 +1,10 @@
+---
+layout: post
+title: "Backgrounds"
+tags:
+   - site
+---
+
+If you hadn't noticed, the background on this site changes every time you load the page. While I've had the background collection for some time -- since high school actually -- I had forgotten that some of the backgrounds actually came from one of my friends, and I did not attribute this fact. I would like to fix this, especially since he made the cool images himself in gimp and has graciously let me continue using them. Take a look at his "high school site":http://www.tjhsst.edu/~jboning/, where he has some more cool artwork in a changing background. You'll also notice that his loading mechanism is more efficient than mine.
+
+Some of the other backgrounds come from another project I used to work on during high school, "iodine":http://iodine.tjhsst.edu/, our school's intranet.

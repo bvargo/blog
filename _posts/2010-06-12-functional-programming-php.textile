@@ -1,0 +1,218 @@
+---
+layout: post
+title: "Functional Programming with PHP"
+tags:
+   - cs
+   - code
+---
+
+Wait, what? You can do functional programming in PHP? Doesn't that make PHP even more messy? Why would you do such a thing? In this case, no, it makes my code cleaner.
+
+Background: I am developing an application (in PHP - no comments on that please) that uses a MVC architecture (Model View Controller). I designed the framework myself, with some helper functions pulled from an older project that I used to work on. There is no cruft; there is little messiness associated with PHP projects; it does only what I need in a logical manner. More importantly, the framework lets me focus on my application without having to worry about backend stuff. For database access, I use ADOdb with an OOM similar to ActiveRecord. For templates, I use Smarty.
+
+Across many pages in my application, I need to sort tabular data that is displayed to the user. Seems simple enough, right? Django handles this by having an inner class, Meta, that can define the ordering of objects returned from QuerySets. That, in my opinion, is the wrong way to go about sorting data in a template. Why should my model be defining the order in which data is displayed to the user? django-sorting has some automagic sorting functions, but there is no way to specify the default sorting order. Back in my PHP application, I did not want to specify the sorting order in my PHP code. The sort ordering belongs in the template, from which the data is displayed. Since I use Smarty, I had to find a way to make this happen. My solution is a Smarty attribute, sortby, which will magically take a string of fields to sort by and somehow sort the data.
+
+First, let us attack the problem of sorting itself. PHP has an array of sorting functions: sort, uksort, usort, and uasort. All, except for sort, take a callback comparison function that is responsible for comparing two elements. Even C has something similar; qsort takes a base pointer, the number of elements, the size of each element, and a function pointer to a comparison pointer. Back to PHP, this means we would do something like this for something simple:
+
+{% highlight php startinline %}
+// the comparison function
+function compare($a, $b)
+{
+   if($a == $b)
+   {
+      return 0;
+   }
+   return ($a < $b) ? -1 : 1;
+}
+
+// some initial data
+$array = array(1, 5, 2, 5, 7, 8, 9, 8);
+// actually do the sort
+usort($array, "compare");
+// do stuff with sorted data here
+{% endhighlight %}
+
+However, those comparison functions get redundant and messy. PHP allows anonymous (lambda) functions, so we could do something like this:
+
+{% highlight php startinline %}
+// some initial data
+$array = array(1, 5, 2, 5, 7, 8, 9, 8);
+// sort, defining the comparison function as an anonymous function
+usort($array, function($a, $b)
+{
+   if($a == $b)
+   {
+      return 0;
+   }
+   return ($a < $b) ? -1 : 1;
+});
+// do stuff with sorted data here
+{% endhighlight %}
+
+Maybe that is a little better; I personally think it is still messy. What if I want to sort multiple items though? I have to define that comparison function twice now, if I still want it to be an anonymous function. More importantly though, this does not work in Smarty. I do not want to be writing sorting PHP code in my template. What I need is a function that will write a sorting function for me. I want to be able to do something like this:
+
+{% highlight php startinline %}
+// some initial data - instances of the Person class
+//$people - assume it's already assigned
+// actually do the sort
+uasort($people, sortby("first_name", "last_name", "-#age"));
+{% endhighlight %}
+
+That would be awesome. I do not have to worry about defining my own comparison function. sortby somehow knows how to access the correct fields of my People class and produces a comparison function that will first try sorting by the person's first name, then the last name, and then the age, in reverse. The "-#" means that I want age to be sorted in a numeric manner and in reverse. Let's see how we can make this happen. My solution:
+
+{% highlight php linenos startinline %}
+// generates a function that can be used for comparisions while sorting
+// in order, compares by:
+//    object->field()
+//    object->field
+//    object['field']
+// if a field is not given, then the data is compared directly
+// modifiers:
+//    prefix '-' to do a reverse sort
+//    prefix '#' to sort numerically / direct comparison
+//    prefix '-#' to sort numerically / direct comparison in reverse
+// example:
+//    sortby("-name, #age") returns a function that first compares name in
+//    reverse and, if those are equal, then compares by age numerically
+function sortby($sortby)
+{
+   // caches generated functions
+   static $sort_funcs = array();
+
+   if(empty($sort_funcs[$sortby]))
+   {
+      $code = "\$compare = 0;";
+      foreach(split(',', $sortby) as $key)
+      {
+         $direction = '1';
+         $number = 0;
+         if(substr($key, 0, 1) == '-')
+         {
+            $direction = '-1';
+            $key = substr($key, 1);
+         }
+         if(substr($key, 0, 1) == '#')
+         {
+            $key = substr($key, 1);
+            $number = 1;
+         }
+         if($key == "")
+         {
+            // assume a direct sort of data, since no fields were given
+            $code .= "
+            \$keya = \$a;
+            \$keyb = \$b;
+            ";
+         }
+         else if(is_numeric($key))
+         {
+            // must be the index of an array - variables/functions start with
+            // letters
+            $code .= "
+            if(is_array(\$a) && is_array(\$b) && isset(\$a['$key']) && isset(\$b['$key']))
+            {
+               \$keya = \$a['$key'];
+               \$keyb = \$b['$key'];
+            }
+            else
+            {
+               // bad key given
+               \$keya = 0;
+               \$keyb = 0;
+            }
+            ";
+         }
+         else
+         {
+            $code .= "
+            if(is_numeric(\$a) && is_numeric(\$b))
+            {
+               \$keya = \$a;
+               \$keyb = \$b;
+            }
+            else if(method_exists(\$a, '$key') && method_exists(\$b, '$key'))
+            {
+               \$keya = \$a->$key();
+               \$keyb = \$b->$key();
+            }
+            else if(isset(\$a->$key) && isset(\$b->$key))
+            {
+               \$keya = \$a->$key;
+               \$keyb = \$b->$key;
+            }
+            else if(is_array(\$a) && is_array(\$b) && isset(\$a['$key']) && isset(\$b['$key']))
+            {
+               \$keya = \$a['$key'];
+               \$keyb = \$b['$key'];
+            }
+            else
+            {
+               \$keya = 0;
+               \$keyb = 0;
+            }
+            ";
+         }
+         if($number)
+         {
+            $code .= "if(\$keya > \$keyb) return $direction * 1;\n";
+            $code .= "if(\$keya < \$keyb) return $direction * -1;\n";
+         }
+         else
+         {
+            $code .= "if ( (\$compare = strcasecmp(\$keya, \$keyb)) != 0 ) return $direction * \$compare;\n";
+         }
+      }
+      $code .= 'return $compare;';
+      $sort_func = $sort_funcs[$sortby] = create_function('$a, $b', $code);
+   }
+   else
+   {
+      $sort_func = $sort_funcs[$sortby];
+   }
+   return $sort_func;
+}
+{% endhighlight %}
+
+Whoo. Get all that? Let's go through some it.
+
+* Lines 17-19: $sort_funcs is an associative array. After the sortby function produces a comparison function and "compiles" it into an actual function, it caches it so that further sorts will use use the already-created function. Why generate the same function twice?
+* Line 21: $code is going to be a string that makes up the function we are building. We will turn it into an actual, callable function later.
+* Line 24: $direction and $number control which direction we will sort in for a particular key and whether the sort is numeric ("100" < "90" but 90 < 100)
+* Lines 26-35: Set $direction and $number appropriately for the current key.
+* Line 36: If someone calls the function with sortby(''), assume that we want the elements of the array to be directly compared.
+* Line 44: If someone calls the function with sortby("5"), assume that the elements being sorted are themselves arrays, and we want to sort by a particular element of the array. Functions and variables cannot start with numbers.
+* Line 62: With the other checks out of the way, try to figure out what the passed arguments actually are. Are they numeric (line 65)? Are they methods that we should call (line 70)? Are they attributes in the object (line 75)? Are they keys in an associative array (line 80)? If none of these are valid, set $keya and $keyb to 0, and sortby just won't sort the function.
+* Lines 92-100: Add code that returns the proper response for the field.
+* Line 22 - 101: All of this is in a loop for each field that is to be sorted. Additional code is added to the $code string to support supporting successive fields. The proper response is returned by lines 92-100 as soon as the two elements being compared are different, and the later code will not be run in this case.
+* Line 102: If we get all the way to this point, $compare will still be 0 because the two objects being compared appear to be equal, or none of the comparison methods work. Return.
+* Line 103: This is where the magic happens. This takes $code, which is still a string, and turns it into a proper callable function. It puts the function into the cache.
+* Line 109: This returns the sorting function.
+
+So this function makes the magic "uasort($people, sortby("first_name", "last_name", "-#age"));" work pretty nicely. But how does this work in Smarty? It's still a PHP function. One last little piece is required, a Smarty plugin:
+
+{% highlight php startinline %}
+// smarty modifier: sortby
+// allows arrays of named arrays, objects with functions, or objects with
+// fields to be sorted by a given field or fields
+function smarty_modifier_sortby($arr_data, $sortfields)
+{
+   uasort($arr_data, sortby($sortfields));
+   return $arr_data;
+}
+{% endhighlight %}
+
+Call it modifier.sortby.php, to tell Smarty that this is a modifier, if you put it in a directory Smarty is already searching for functions. If you do not have such a directory, make sure the following line is run, which will add the modifier to a Smarty instance, in this case called $smarty.
+
+{% highlight php startinline %}
+$smarty->register_modifier("sortby", "smarty_modifier_sortby" );
+{% endhighlight %}
+
+Now I can use the sortby modifier in Smarty. Going back to my example of a Person, assume that a Person has a public variable $best_friend, which is another Person object. Now, using this Smarty attribute, I can do something like this in my template:
+
+{% highlight smarty %}
+{foreach from=$people|@sortby:"best_friend->first_name,best_friend->last_name,#best_friend->age,-#age" item=person}
+{% endhighlight %}
+
+What will this do? It will loop over all of the objects in $people, sorted by the person's best friend's first name, the person's best friend's last name, the person's best friend's age, and finally by the person's age (numerically, in reverse). Within the loop, the variable $person is available, so I can display the details of each person. How does the "best_friend->first_name" work? best_friend is a public variable in the Person instance stored in $people. In the sortby function, this expands to "$a->best_friend->first_name", which is valid, so it works.
+
+This sure beats writing a bunch of comparison code somewhere else in my application every time I want to sort something. Of course it may not work for everything; I have not thoroughly tested it. Released under the MIT license.

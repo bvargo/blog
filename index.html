@@ -1,0 +1,12 @@
+---
+layout: default
+title: Vargoville
+subtitle: the blog of bvargo
+---
+<div>
+   {% for post in site.posts %}
+      <div class="post">
+         {% include post_summary.html %}
+      </div>
+   {% endfor %}
+</div>

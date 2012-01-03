@@ -1,0 +1,150 @@
+---
+layout: post
+title: "Introduction to awk"
+tags:
+   - code
+---
+
+awk is a pattern scanning and processing language that is commonly used to process tabular data by either transforming the data in some way or producing a report about the data. The language is turing complete, and at least the GNU version has file and network I/O capabilities. However, this introduction guide will not discuss the advanced features for the sake of brevity.
+
+h1. Common Usage
+
+The most common, and probably the simplest, usage of awk is printing particular fields from a  tabular data source.
+
+Suppose that we have the following file, hp_dates:
+
+{% highlight text %}
+Severus  Snape       January     9  1960
+Arthur   Weasley     February    6
+James    Potter      March       27 1960
+Ron      Weasley     March       1  1980
+Fred     Weasley     April       1  1978
+George   Weasley     April       1  1978
+Draco    Malfoy      June        5  1980
+Harry    Potter      July        31 1980
+Neville  Longbottom  July        30 1980
+Ginny    Weasley     August      11 1981
+Hermione Granger     September   19 1979
+Bill     Weasley     November    29 1970
+Lord     Voldemort   December    31 1926
+{% endhighlight %}
+
+Further suppose that we want to print the years of birth, omitting all of the other data. Notice how the number of spaces between each field is variable. One might be tempted to use the cut command to do this. However, this will not work well with this input due to the column-aligned data instead of delimited data. However, we can easily print certain columns of data by using awk:
+
+{% highlight bash %}
+awk '{ print $5 }' hp_dates
+{% endhighlight %}
+
+What this does is reads the file hp_dates and runs the command for each line. In this case, the $5 indicates that the 5th field should be printed; $0 is a special case where the entire line (really the entire record -- see below) is printed. awk can also read from standard input, in which case the filename can be omitted. Also, notice how Arthur Weasley does not have a year associated with his birthday. awk will not throw an error in this case, but nothing will be printed for $5.
+
+Further suppose that we want to output both the first name and the year of birth, and this time our data is coming from standard input. Again, this is done fairly easily with awk:
+
+{% highlight bash %}
+cat hp_dates | awk '{ print $1, $5 }'
+{% endhighlight %}
+
+h1. How This Works
+
+awk consists of pattern/action pairs. When awk is run, the input is split into a number of records. By default, these records are separated by the newline character; see the RS variable below. For each record, if a pattern is matched, the associated action is performed. The general format is as follows:
+
+{% highlight text %}
+pattern { action1; action2 }
+{% endhighlight %}
+
+Each action can be separated by semicolons, as shown, or the actions can be separated onto multiple lines without using semicolons.
+
+In the above examples, we omit the pattern, so the action will be performed for every line in the file. Also, we use a few default values above. The first default is the field separerator, by default whitespace. See the FS variable below. The second is the output field separator, which is inserted between the $1 and the $5 in the second example. This value is also a space by default. If we had omitted the comma, the two values would be printed together without any delimiter. See the OFS variable below. Finally, we use the output record seperator, by default a newline, which separates records on output. See the ORS variable below.
+
+h1. Special Variables
+
+awk has a number of special variables, such as the OFS (output field seperator) that was already mentioned above. As the dollar sign is used to retrieve fields from a record, the variables should be used without a dollar sign. For example, the variable NF would give the number of fields, while $NF would access the last field.
+
+Variables of particular interest:
+
+* NR - current count of the number of input records. The first record will be  1; the second will be 2, etc.
+* NF - the number of fields in the current record.
+* FILENAME - the current filename (- for standard input).
+* FS - the field separator. The default is white space, meaning either tab characters, space characters, or a combination of the two.
+* RS - the record separator. The default is a newline.
+* OFS - the output field separator, the value inserted for a comma, as shown above. By default this is a space.
+* ORS - the output record separator, the value that separates records for output. By default this is a newline.
+
+See more special variables in the "GNU manual":http://www.gnu.org/software/gawk/manual/gawk.html#Built_002din-Variables.
+
+h1. Another Example
+
+Suppose that we want to emulate wc and print out the number of lines, words, and characters.
+
+{% highlight bash %}
+awk 'BEGIN { print "File statistics (lines, words, characters):" }
+{ w += NF; c += length + 1 }
+END { print NR, w, c}' filename_here
+{% endhighlight %}
+
+This file is devided into three parts:
+
+# The first action is matched on BEGIN, which is a pattern that matches only when awk is first executed, even if multiple files are specified. Note that the FILENAME variable will be blank in the BEGIN clause, because awk has not yet opened a file.
+# The second action does not have a pattern, so it will be run for each line. w is storing the number of fields, in this case the number of words because the default delimiter is spaces and/or tabs. c adds the number of characters in each record, plus one to include the newline characters that are not a part of each record. length is actually a function, and is shorthand for length($0) (where $0 is the entire record). length returns the number of characters in the provided argument.
+# The last action is matched by END, which is similar to BEGIN but matches when awk is about to exit. In this case, we use it to print out the statistics that we accumulated for each record. Remember that NR is the number of records (lines), which is why we did not increase a counter for each record.
+
+h1. Other Patterns
+
+Suppose that we want to print the first name and year of birth for each of the Weasleys, excluding everyone else. We could use grep:
+
+{% highlight bash %}
+grep Weasley hp_dates | awk '{ print $1, $5 }'
+{% endhighlight %}
+
+Alternatively, we could use the pattern feature of awk:
+
+{% highlight bash %}
+awk '{if($0 ~ /Weasley/) { print $1, $5 }}' hp_dates
+{% endhighlight %}
+
+The the if statement checks to see if the entire record contains the term Weasley. However, this is inside the action. Let's make it a pattern:
+
+{% highlight bash %}
+awk '$0 ~ /Weasley/ { print $1, $5 }' hp_dates
+{% endhighlight %}
+
+Regular expressions are commonly used in this manner, so there is an even shorter expression:
+
+{% highlight bash %}
+awk '/Weasley/ { print $1, $5 }' hp_datesa
+{% endhighlight %}
+
+Note that there are no parenthesis around this shortcut. If parenthesis are added, the longer with the $0 should be used.
+
+In the above output, Arthur Weasley, who does not have a year, is still represented. Let's include only lines that have at least the number of records we want:
+
+{% highlight bash %}
+awk '/Weasley/ && NF >= 5 { print $1, $5 }' hp_dates
+{% endhighlight %}
+
+Try doing that with grep. The && is a boolean operator, which will act as one would expect ("and"). || is also available ("or").
+
+Finally, let's print the entire record instead of just the first name and the year of birth:
+
+{% highlight bash %}
+awk '/Weasley/ && NF >= 5 { print }' hp_dates
+{% endhighlight %}
+
+Note that no argument is given to print. Like length, this will assume $0 as the argument, the equivalent of print($0), which prints the entire record. Note that when the record is printed in this way, the entire line, as it is originally represented in the file complete with spacing, is printed.
+
+h1. More on Patterns
+
+Comma separated patterns can be used to turn an action on and off. Consider a file that has a START marker and an END marker around data that should be printed. We can print only the lines between these markers in addition to the markers themselves as follows:
+
+{% highlight bash %}
+awk '/START/,/END/ { print }' test_file
+{% endhighlight %}
+
+In the previous example, /START/,/END/ could be replaced with any conditional, such as (NF==0),(NF==2). The first pattern will turn on the action, which will run for each record thereafter until the stop condition is met, which will execute the action for the last time and turn it off.
+
+One more final note on patterns and actions: each is executed independently of the others. This means that if two actions match a single record, and both print the record, then the record will be printed twice.
+
+h1. Further Information
+
+This introduction has only briefely touched upon the basic features of awk. As I mentioned, the language is turing complete, and comes with much more functionality, including features found in most "normal" programming languages and libraries, such as for loops, complex if statements (with boolean operators), arrays (including multi-dimensional arrays and associative arrays), string functions, regular expressions, environment variables, number formatting (in addition to printf), random numbers, etc.
+
+For more information about awk, particularly gawk (the GNU version), see the "full manual":http://www.gnu.org/manual/gawk/ or the man/info pages. "This page":http://www.grymoire.com/Unix/Awk.html is also a nice guide.

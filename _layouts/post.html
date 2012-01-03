@@ -1,0 +1,11 @@
+---
+layout: default
+subtitle: Vargoville
+---
+<h3 class="date">{{ page.date | date: "%A, %d %B %Y" }}</h3>
+<div class="post_text">
+   {{ content }}
+</div>
+
+{% assign post = page %}
+{% include post_footer.html %}

@@ -1,0 +1,7 @@
+<div class="post_footer">
+  Posted in
+  {% for tag in post.tags %}
+      <a href="/blog/tag/{{ tag }}">{{ tag }}</a>
+  {% endfor %}
+  on {{ post.date | date: "%d %B %Y" }}
+</div>

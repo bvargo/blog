@@ -1,0 +1,10 @@
+---
+layout: post
+title: "New Blog Engine"
+tags:
+   - site
+---
+
+I haven't updated this blog in awhile, and this is partly due to the fact that I disliked the blog engine I was using, Serendipity. It's not that Serendipity is bad, but rather that it simply tries to do too much. It is too flexible, at least for what I needed it for, but yet some things that I consider core features did not work properly. The biggest issue I had was combining markup and code syntax highlighting (geshi). In addition, once I had written a post and it looked good in the preview interface, the published version always differed in some way.
+
+I have developed my own blog engine now. It has three simple features: posts (with code syntax highlighting and markdown), comments (also with code syntax highlighting and markdown), and RSS/Atom feeds. Will this make me update this blog more often? I do not know. At least the blog engine will not be in my way anymore.

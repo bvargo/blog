@@ -1,0 +1,126 @@
+---
+layout: post
+title: "BitlBee - Changing the Way I IM"
+tags:
+   - tech
+---
+
+It is not very often that a piece of software dramatically changes my workflow. A few years ago, I largely stopped switching OSes, browsers, email clients, window managers, IM clients, etc. I settled with what I had, as it was largely good enough. While I have switched browsers since then (Firefox -> Chromium; more in another post), the workflow isn't dramatically different. Most of the keyboard shortcuts are even the same. So after a friend pointed me to "Bitlbee":http://www.bitlbee.org, an IM client, and I started to use it, I was hooked. BitlBee is an IM client, but it is unlike any other IM client that I have seen. I did not only change applications, but I fundamentally changed how I access IM services.
+
+Traditionally, I have used Gaim for IM, even on Windows. Since I was running Linux, the standard AIM client (yes, they did have one!) was awful. I have no idea if it has improved since then; I have not looked. Eventually Gmail and Google Talk came around, so I added a Jabber/XMPP account to my arsenal. Then I was dragged into getting a Facebook account, and Facebook now supports Jabber/XMPP for chat as well. Gaim (now called "Pidgin":http://pidgin.im/) let me keep up, and so I never switched to anything new. Somewhere in there I started using IRC, primarily for connecting to "freenode":http://freenode.net/. Pidgin is pretty awful when it comes to IRC; it simply is not built for it. Instead, I use "irssi":http://irssi.org/ inside a "GNU Screen":http://www.gnu.org/software/screen/ session. I liked the always-on nature of irssi, as it runs on my server, and looked for a way to do the same with IM. I could use a text client, such as pork or mcabber, but then I would have one program for each protocol, which I certainly did not want. I could also switch everything to Jabber/XMPP, using transports for other protocols, but then I would still have irssi and some other piece of software for chatting. Enter BitlBee.
+
+As I mentioned, BitlBee is a fundamentally different IM client. Not only is it a client, but it is also a server, an IRC server. It is not an IRC server in the traditional sense; instead, it presents all of your IM buddies as other IRC users inside a control channel (&bitlbee). Active users (not away or idle) are marked as having voice in the channel, while those that are away or idle do not have voice. To talk to a buddy, you can address chats to that user in the control channel, or you can query them. Unlike a normal IRC channel, only that buddy will see the text you address to them in the control channel. When a buddy logs off, the user leaves the control channel. Special commands in the control channel allow you to access more detailed information about the buddy, or you can use a standard /whois IRC command. More special commands allow for setting up IM accounts, accessing a full buddy list, etc. Let's take a look at how to get started quickly with BitlBee. I'm only going to cover AIM and Jabber, as that's all I use, but BitlBee supports other IM protocols as well, and it even supports Twitter.
+
+Why is this important to me? It means I can access all of my chatting services, from Facebook to IRC, from a single client: irssi (or any other IRC client, should I decide to switch).
+
+*First step:* Install and start the server.
+
+As this is OS/distro-dependent, I'm going to skip this. I will assume you can figure it out. If you would rather use a public server, there are a number available, which are listed on the BitlBee website. However, I would recommend using your own, unless you want to give your IM passwords out to third parties.
+
+*Second step:* Connect to the server from the IRC client.
+
+{% highlight text %}
+/connect localhost
+{% endhighlight %}
+
+Substitute localhost with your server name, if applicable. Notice I used /connect, not /server. The latter will close any other IRC connections, while the former will not. This means I can be connected to freenode and my BitlBee server at the same time. To send commands to a specific server, execute the following in the status window:
+
+{% highlight text %}
+/window server <connection_name>
+{% endhighlight %}
+
+Read the quickstart guide if you wish; it's fairly comprehensive, and will guide you through the rest of the setup process. If you are impatient, keep following along here to get started quickly, then you can head back to the quickstart guide to read the rest, as I'm not going to cover every feature (groupchats, etc).
+
+*Third step:* Setup your account with the BitlBee server.
+
+In the control channel (&bitlbee), execute the following (do the same for all following commands):
+
+{% highlight text %}
+register <password_here>
+{% endhighlight %}
+
+BitlBee will associate this password with your current nick. Then, when you connect in the future, you just have to identify, either using the identify command or standard identification methods for IRC, and you will have access to your accounts.
+
+*Fourth step:* Setup your IM accounts.
+
+{% highlight text %}
+account add <protocol> <username> <password>
+{% endhighlight %}
+
+To set SSL (find the account number with "account list"):
+
+{% highlight text %}
+account set <account_num>/ssl true
+{% endhighlight %}
+
+To force TLS (the default is try, which falls back to plaintext if not available):
+
+{% highlight text %}
+account set <account_num>/tls true
+{% endhighlight %}
+
+Some examples:
+
+AIM:
+
+{% highlight text %}
+account add oscar my_screenname my_password
+{% endhighlight %}
+
+Google Talk:
+
+{% highlight text %}
+account add jabber my_username@gmail.com my_password
+account set <account_num>/tls true
+{% endhighlight %}
+
+Google Talk (for Google Apps, e.g. most college campuses):
+
+{% highlight text %}
+account add jabber my_username@some_domain.example.com my_password
+account set <account_num>/tls true
+account set <account_num/server talk.google.com
+{% endhighlight %}
+
+Facebook:
+
+{% highlight text %}
+account add jabber my_facebook_username@chat.facebook.com
+{% endhighlight %}
+
+Note that Facebook does NOT support encryption, while Google Talk requires it. This means all of your chats to Facebook will be sent in plaintext, which allows snoopers to listen in on your conversation, especially if you use an unencrypted wireless access point. (Note that the in-browser chat client also runs over HTTP, so the same is true.) However, your password is encrypted using a DIGEST-MD5 method prior to being sent over the connection to Facebook, so your password is fairly secure.
+
+After you have setup your accounts and account settings, save:
+
+{% highlight text %}
+save
+{% endhighlight %}
+
+*Fifth step:* Logging in to your accounts.
+
+By default, BitlBee will connect to all accounts that have the auto_connect account property set to 1. However, to get started now, do the following:
+
+{% highlight text %}
+account on
+{% endhighlight %}
+
+*Sixth step:* Making the channel nicks better.
+
+Notice that, by default, BitlBee will use a buddy's username or handle as their nick in the channel. If, like me, you have aliases set up on the server, this is rather annoying. In the case of Facebook, this is especially annoying as Facebook Chat does not actually use the usernames of your friends. Instead, it uses negative numbers. Well isn't that helpful. Thankfully, BitlBee will let us change this behavior (added in version 1.2.5):
+
+{% highlight text %}
+account set <account_num>/nick_source full_name
+save
+account off <account_num>
+account on <account_num>
+{% endhighlight %}
+
+Instead of using full_name, you can also use first_name.
+
+*Seventh step:* Chatting.
+
+To chat with a user, simply address them in the control channel "username: Hey, I'm using BitlBee" or query them "/q username". BitlBee will remember which method you use to talk to the user, so the response will come back to the same window. The default for incoming messages starting a conversation can also be set ("set private true/false").
+
+*Final step:* Go read the documentation.
+
+As I said, BitlBee can do much more than this quick guide shows. Away and status messages, adding or removing users, blocking users, renaming users, group chats, buddy list interaction, typing notices, and simulating a netsplit are just some of the features I did not cover. BitlBee is a pretty powerful piece of software, and I'm glad that someone pointed it out to me.
