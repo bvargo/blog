@@ -1,0 +1,63 @@
+---
+layout: post
+title: Finding and Eliminating Duplicated Files
+date: 2012-04-25 15:44:09
+tags:
+ - linux
+ - code
+---
+
+Fancy file systems are all the rage. "ZFS":http://hub.opensolaris.org/bin/view/Community+Group+zfs/whatis, "btrfs":https://btrfs.wiki.kernel.org, and even Microsoft's new "ReFS":http://blogs.msdn.com/b/b8/archive/2012/01/16/building-the-next-generation-file-system-for-windows-refs.aspx include data deduplication features. However, these techniques can use a lot of memory, and new file systems are often not nearly as stable as tried and true file systems, such as "ext3/ext4":https://ext4.wiki.kernel.org/ or "XFS":http://oss.sgi.com/projects/xfs/. Experimenting with file systems is fun; however, in this case, I am not about to trust all of my data to a new file system just to remove duplicate files. Instead, I decided to deduplicate my files using a few scripts. The end result: over 12GB of saved space after just a few minutes of scanning my hard drive. With hard drive prices sky high (but slowly coming down), this will help me last another 6 months before I have to upgrade my hard drives again.
+
+Out of approximately 1TB of data, I had 24G of total space occupied by duplicated files. This means that, at a minimum, I should be able to save 12G of space, assuming there are only two copies. However, for many of my photos, it turned out that I had three or four copies in different directories. RAW photos are on the order of 15MB each for my camera, so this is quite a bit of wasted space. Now, I have largely eliminated duplicated files through removing excess files and hardlinking the remaining files. I use hardlinks for pictures, since I often to have a single picture in more than one directory, for easy browsing.
+
+Here is my quick script that will generate a SQLite database containing the md5 hash of every file in the current directory that is over 1MB in size:
+
+{% highlight bash startinline %}
+#!/bin/bash
+# creates an index all files in the filesystem, path and md5
+# the database is named "index.db"
+# bvargo
+
+DBFILE='index.db'
+
+# creates the databse
+rm -f $DBFILE
+sqlite3 $DBFILE "CREATE TABLE files (md5 text, path text)";
+
+# the magic that does everything
+find . -type f -size +1M -print0 \
+   | xargs -0 md5sum \
+   | sed 's/^/INSERT INTO files (md5, path) VALUES ("/; s/  /", "/; s/$/");/' \
+   | sqlite3 $DBFILE
+{% endhighlight %}
+
+Why the 1MB? I have a lot of code, and SVN and git tend to duplicate a number of files. For instance, many git scripts are duplicated between repositories. I do not wish to eliminate these duplicates, as I may change the files in the future. Since they do not contribute much to the total hard drive space used, I can skip them. Skipping small files also has the advantage of skipping a large number of files, reducing the number of hard disk seeks, and thus speeding the process of indexing the drive.
+
+If you wish to change this property, change the +1M in the find statement above. The rest of the find statement is just finding files under  the current directory and printing the filenames, delimited by null characters. xargs is then running md5sum on each file. The sed -statement- hack converts the md5sum output to SQL. The SQL is passed to SQLite without any intermediate files.
+
+Once we have our index file, index.db, we can find duplicate files. The SQL statement will find all files that have an md5 hash that matches another file in the database. The name of all duplicated files is printed, along with the hash. From there, eliminate all except for one of the files to remove the duplicate entries. The utility is not smart enough to figure out which files you want removed and which files you want to keep!
+
+{% highlight bash startinline %}
+# find duplicate files
+# replace $DBFILE with index.db if running from the command line
+sqlite3 $DBFILE "SELECT md5, path FROM files WHERE md5 IN
+      (SELECT md5 FROM files GROUP BY md5 HAVING COUNT(md5) > 1)
+      ORDER BY md5;"
+{% endhighlight %}
+
+Before we delete anything, if you want to see how much space is taken up by files in the output set, run the following command. This is where I got the 24GB number from, as I noted above. Divide by two to get the minimum amount of space that you can save.
+
+{% highlight bash startinline %}
+# to get the size saved:
+# replace $DBFILE with index.db if running from the command line
+sqlite3 $DBFILE "SELECT path FROM files WHERE md5
+      IN (SELECT md5 FROM files GROUP BY md5 HAVING COUNT(md5) > 1)
+      ORDER BY md5;" \
+   | tr '\n' '\0' \
+   | du -shc --files0-from=-
+{% endhighlight %}
+
+Happy deduplicating!
+
+Disclaimer: The SQL generation method is not completely robust, as it depends on the output format of md5sum. However, the null-delimited entries should mean that the script should work on all filenames, assuming the md5sum output remains constant. The last script snippet will break on file names that contain newlines, since I knew that none of my files contained newlines.
