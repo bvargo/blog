@@ -1,0 +1,58 @@
+---
+layout: post
+title: Fixing Old Themes for Enlightenment 17
+date: 2012-05-01  2:18:20
+tags:
+ - linux
+ - e17
+---
+
+My window manager of choice is "Enlightenment 17":http://enlightenment.org/, which has been in development for at least the past seven years, when I strated using it. While generally awesome, e17 has never had a stable release, which means that features sometimes break. Last November, my theme of choice, "Milky's":http://exchange.enlightenment.org/theme/show/1594, stopped displaying the titlebar properly. Since the last release of the theme was from early 2010, I finally decided to learn about the e17 theming system and fix the problem.
+
+The only post I could find of someone with a similar issue was "here":http://forums.bodhilinux.com/index.php?/topic/2972-old-e17-themes-with-titlebar-problem/. My problem can be sumarized as follows: the title bar became *extremely* short after the upgrade, as shown in the screenshot below. The titlebar text was unreadable. The close, minimize, and maximize buttons were unsable.
+
+Before fix:
+!/blog/images/e17-titlebar-before.png(Before fix)!
+
+Without any good leads, I decompiled the "edje":http://trac.enlightenment.org/e/wiki/Edje theme file with edje_decc and had a look around. The theme comprised of almost 44,000 lines of styling. Wow. Luckily, the border file, milky_border.edc, where I figured my problem was located, was only ~7500 lines long. Of that, only ~1000 lines, not including support macros, were for the default border group, which is where I was experiencing my error. If I could fix the default border type, then I could fix the other border types as well.
+
+Before starting this experiment, I knew nothing about edje files, so the following could be completely wrong. However, it appears that, at some point, the interpreted behavior for text switched from "fit the text into the box" to "let the text overflow the box." (Alternatively, see the note at the end of this post, which notes how this might work.) The height of the text was the primary driver behind the height of the title bar, so after this change, only the border regions of the title bar were visible. Since these border regions were the same color, and the text overflowed, it looked like the border had shrunk.
+
+Solution: make the text area have a minimum size. The default theme file does not set the minimum height of the font size text area in pixels -- indeed, I have not taken the time to understand how the default theme is working without a height set -- but a kludge for Milky's theme is to set the minimum height of the text area to the font size of the text; this is 10 pixels for Milky at normal DPI settings. Voilà, the theme looks proper once again. Ideally, the text area should resize itself to match the height of the text, but I have not yet figured out how to make this happen. (Again, see the note at the bottom.)
+
+After fix:
+!/blog/images/e17-titlebar-after.png(After fix)!
+
+Specific to Milky's theme, the following should be in the milk_border.edc file within each border group:
+
+{% highlight text %}
+part {
+   name:           "title2";
+   type:           TEXT;
+   mouse_events:   0;
+   description {
+      state: "default" 0.0;
+      align: 1.0 0.0;
+      visible: 0;
+      min: 0 10;               // this is the new line
+      rel1 {
+         relative: 0.0  0.0;
+         offset:   0    3;
+      }
+      rel2 {
+         relative: 0.0  0.0;
+         offset:   0    3;
+      }
+      text {
+         text_source:   "e.text.title";
+         source:        "e.text.title";
+         min:           0 1;
+         text_class:    "title_bar";
+      }
+   }
+}
+{% endhighlight %}
+
+The line marked above should be added to every title2 section in the file, so that each border type is corrected. To recompile the theme into a theme file, run the build.sh script, and import the resulting *.edj file.
+
+The "correct" fix: It seems that the "min: 0 1;" line in the text portion of the part should prevent the part from being resized to smaller than the text, depending on the values. However, no combination of values seemed to produce the desired effect, so I have left the line as-is, as there appears to be a further intricacy that I have not yet discovered.
