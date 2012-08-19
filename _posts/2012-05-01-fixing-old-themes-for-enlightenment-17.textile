@@ -7,9 +7,9 @@ tags:
  - e17
 ---
 
-My window manager of choice is "Enlightenment 17":http://enlightenment.org/, which has been in development for at least the past seven years, when I strated using it. While generally awesome, e17 has never had a stable release, which means that features sometimes break. Last November, my theme of choice, "Milky's":http://exchange.enlightenment.org/theme/show/1594, stopped displaying the titlebar properly. Since the last release of the theme was from early 2010, I finally decided to learn about the e17 theming system and fix the problem.
+My window manager of choice is "Enlightenment 17":http://enlightenment.org/, which has been in development for at least the past seven years, when I started using it. While generally awesome, e17 has never had a stable release, which means that features sometimes break. Last November, my theme of choice, "Milky's":http://exchange.enlightenment.org/theme/show/1594, stopped displaying the titlebar properly. Since the last release of the theme was from early 2010, I finally decided to learn about the e17 theming system and fix the problem.
 
-The only post I could find of someone with a similar issue was "here":http://forums.bodhilinux.com/index.php?/topic/2972-old-e17-themes-with-titlebar-problem/. My problem can be sumarized as follows: the title bar became *extremely* short after the upgrade, as shown in the screenshot below. The titlebar text was unreadable. The close, minimize, and maximize buttons were unsable.
+The only post I could find of someone with a similar issue was "here":http://forums.bodhilinux.com/index.php?/topic/2972-old-e17-themes-with-titlebar-problem/. My problem can be summarized as follows: the title bar became *extremely* short after the upgrade, as shown in the screenshot below. The titlebar text was unreadable. The close, minimize, and maximize buttons were unusable.
 
 Before fix:
 !/blog/images/e17-titlebar-before.png(Before fix)!
